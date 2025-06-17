@@ -6,28 +6,43 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData, { Cliente } from '@/hooks/useFinancialData';
+import { useClientes, useAddCliente } from '@/hooks/useSupabaseFinancialData';
+import { useToast } from '@/hooks/use-toast';
 
 const Receitas = () => {
-  const { data, addCliente } = useFinancialData();
+  const { data: clientes = [], isLoading } = useClientes();
+  const addClienteMutation = useAddCliente();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
     valor: '',
-    dataPagamento: '',
+    data_pagamento: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.nome && formData.valor && formData.dataPagamento) {
-      addCliente({
-        nome: formData.nome,
-        valor: parseFloat(formData.valor),
-        dataPagamento: formData.dataPagamento,
-      });
-      setFormData({ nome: '', valor: '', dataPagamento: '' });
-      setShowForm(false);
+    if (formData.nome && formData.valor && formData.data_pagamento) {
+      try {
+        await addClienteMutation.mutateAsync({
+          nome: formData.nome,
+          valor: parseFloat(formData.valor),
+          data_pagamento: formData.data_pagamento,
+        });
+        setFormData({ nome: '', valor: '', data_pagamento: '' });
+        setShowForm(false);
+        toast({
+          title: "Sucesso!",
+          description: "Cliente adicionado com sucesso.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar cliente.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -38,15 +53,19 @@ const Receitas = () => {
     }).format(value);
   };
 
-  const filteredClientes = data.clientes.filter(cliente =>
+  const filteredClientes = clientes.filter(cliente =>
     cliente.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalReceitas = filteredClientes.reduce((sum, cliente) => sum + cliente.valor, 0);
+  const totalReceitas = filteredClientes.reduce((sum, cliente) => sum + Number(cliente.valor), 0);
 
   const handleDateChange = (startDate: string, endDate: string) => {
     console.log('Filtro de data aplicado:', { startDate, endDate });
   };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -115,14 +134,18 @@ const Receitas = () => {
               <Input
                 id="data"
                 type="date"
-                value={formData.dataPagamento}
-                onChange={(e) => setFormData({...formData, dataPagamento: e.target.value})}
+                value={formData.data_pagamento}
+                onChange={(e) => setFormData({...formData, data_pagamento: e.target.value})}
                 required
               />
             </div>
             <div className="md:col-span-3 flex gap-2">
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Salvar
+              <Button 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={addClienteMutation.isPending}
+              >
+                {addClienteMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
@@ -168,10 +191,10 @@ const Receitas = () => {
                 <tr key={cliente.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-gray-900">{cliente.nome}</td>
                   <td className="py-3 px-4 font-medium text-green-600">
-                    {formatCurrency(cliente.valor)}
+                    {formatCurrency(Number(cliente.valor))}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
-                    {new Date(cliente.dataPagamento).toLocaleDateString('pt-BR')}
+                    {new Date(cliente.data_pagamento).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-3 px-4">
                     <Button variant="outline" size="sm">

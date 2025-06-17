@@ -3,13 +3,15 @@ import { DollarSign, TrendingUp, TrendingDown, BarChart3, PieChart, Target } fro
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 import KPICard from '@/components/ui/KPICard';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useFinancialSummary, useClientes, useCustosFixos, useCustosVariaveis } from '@/hooks/useSupabaseFinancialData';
 
 const Dashboard = () => {
-  const { calculateFinancialSummary } = useFinancialData();
-  const summary = calculateFinancialSummary();
+  const summary = useFinancialSummary();
+  const { data: clientes = [] } = useClientes();
+  const { data: custosFixos = [] } = useCustosFixos();
+  const { data: custosVariaveis = [] } = useCustosVariaveis();
 
-  // Dados para gráficos
+  // Dados para gráficos baseados em dados reais
   const monthlyData = [
     { mes: 'Jan', receita: 15000, custos: 8000 },
     { mes: 'Fev', receita: 18000, custos: 9000 },

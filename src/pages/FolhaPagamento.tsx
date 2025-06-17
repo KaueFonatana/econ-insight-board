@@ -6,28 +6,43 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useFuncionarios, useAddFuncionario } from '@/hooks/useSupabaseFinancialData';
+import { useToast } from '@/hooks/use-toast';
 
 const FolhaPagamento = () => {
-  const { data, addFuncionario } = useFinancialData();
+  const { data: funcionarios = [], isLoading } = useFuncionarios();
+  const addFuncionarioMutation = useAddFuncionario();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
     salario: '',
-    dataVencimento: '',
+    data_vencimento: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.nome && formData.salario && formData.dataVencimento) {
-      addFuncionario({
-        nome: formData.nome,
-        salario: parseFloat(formData.salario),
-        dataVencimento: formData.dataVencimento,
-      });
-      setFormData({ nome: '', salario: '', dataVencimento: '' });
-      setShowForm(false);
+    if (formData.nome && formData.salario && formData.data_vencimento) {
+      try {
+        await addFuncionarioMutation.mutateAsync({
+          nome: formData.nome,
+          salario: parseFloat(formData.salario),
+          data_vencimento: formData.data_vencimento,
+        });
+        setFormData({ nome: '', salario: '', data_vencimento: '' });
+        setShowForm(false);
+        toast({
+          title: "Sucesso!",
+          description: "Funcionário adicionado com sucesso.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar funcionário.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -38,11 +53,11 @@ const FolhaPagamento = () => {
     }).format(value);
   };
 
-  const filteredFuncionarios = data.funcionarios.filter(funcionario =>
+  const filteredFuncionarios = funcionarios.filter(funcionario =>
     funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalFolha = filteredFuncionarios.reduce((sum, funcionario) => sum + funcionario.salario, 0);
+  const totalFolha = filteredFuncionarios.reduce((sum, funcionario) => sum + Number(funcionario.salario), 0);
   const mediaSalarial = filteredFuncionarios.length > 0 ? totalFolha / filteredFuncionarios.length : 0;
 
   const handleDateChange = (startDate: string, endDate: string) => {
@@ -52,10 +67,14 @@ const FolhaPagamento = () => {
   // Verificar vencimentos próximos
   const hoje = new Date();
   const proximoVencimento = filteredFuncionarios.filter(funcionario => {
-    const vencimento = new Date(funcionario.dataVencimento);
+    const vencimento = new Date(funcionario.data_vencimento);
     const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
     return diasRestantes <= 7 && diasRestantes >= 0;
   });
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -139,14 +158,18 @@ const FolhaPagamento = () => {
               <Input
                 id="dataVencimento"
                 type="date"
-                value={formData.dataVencimento}
-                onChange={(e) => setFormData({...formData, dataVencimento: e.target.value})}
+                value={formData.data_vencimento}
+                onChange={(e) => setFormData({...formData, data_vencimento: e.target.value})}
                 required
               />
             </div>
             <div className="md:col-span-3 flex gap-2">
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-                Salvar
+              <Button 
+                type="submit" 
+                className="bg-indigo-600 hover:bg-indigo-700"
+                disabled={addFuncionarioMutation.isPending}
+              >
+                {addFuncionarioMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 

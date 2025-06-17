@@ -7,28 +7,44 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useCustosVariaveis, useAddCustoVariavel, useCategorias } from '@/hooks/useSupabaseFinancialData';
+import { useToast } from '@/hooks/use-toast';
 
 const CustosVariaveis = () => {
-  const { data, addCustoVariavel } = useFinancialData();
+  const { data: custosVariaveis = [], isLoading } = useCustosVariaveis();
+  const { data: categorias = [] } = useCategorias();
+  const addCustoVariavelMutation = useAddCustoVariavel();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
-    categoria: '',
+    categoria_id: '',
     valor: '',
     data: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.categoria && formData.valor && formData.data) {
-      addCustoVariavel({
-        categoria: formData.categoria,
-        valor: parseFloat(formData.valor),
-        data: formData.data,
-      });
-      setFormData({ categoria: '', valor: '', data: '' });
-      setShowForm(false);
+    if (formData.categoria_id && formData.valor && formData.data) {
+      try {
+        await addCustoVariavelMutation.mutateAsync({
+          categoria_id: formData.categoria_id,
+          valor: parseFloat(formData.valor),
+          data: formData.data,
+        });
+        setFormData({ categoria_id: '', valor: '', data: '' });
+        setShowForm(false);
+        toast({
+          title: "Sucesso!",
+          description: "Custo variável adicionado com sucesso.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar custo variável.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -39,21 +55,26 @@ const CustosVariaveis = () => {
     }).format(value);
   };
 
-  const filteredCustos = data.custosVariaveis.filter(custo =>
-    custo.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCustos = custosVariaveis.filter(custo =>
+    custo.categoria?.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalCustos = filteredCustos.reduce((sum, custo) => sum + custo.valor, 0);
+  const totalCustos = filteredCustos.reduce((sum, custo) => sum + Number(custo.valor), 0);
 
   const handleDateChange = (startDate: string, endDate: string) => {
     console.log('Filtro de data aplicado:', { startDate, endDate });
   };
 
   // Agrupamento por categoria para o gráfico
-  const custoPorCategoria = data.custosVariaveis.reduce((acc, custo) => {
-    acc[custo.categoria] = (acc[custo.categoria] || 0) + custo.valor;
+  const custoPorCategoria = custosVariaveis.reduce((acc, custo) => {
+    const categoria = custo.categoria?.nome || 'Sem categoria';
+    acc[categoria] = (acc[categoria] || 0) + Number(custo.valor);
     return acc;
   }, {} as Record<string, number>);
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -97,13 +118,13 @@ const CustosVariaveis = () => {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="categoria">Categoria</Label>
-              <Select value={formData.categoria} onValueChange={(value) => setFormData({...formData, categoria: value})}>
+              <Select value={formData.categoria_id} onValueChange={(value) => setFormData({...formData, categoria_id: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {data.categorias.map((categoria) => (
-                    <SelectItem key={categoria.id} value={categoria.nome}>
+                  {categorias.map((categoria) => (
+                    <SelectItem key={categoria.id} value={categoria.id}>
                       {categoria.nome}
                     </SelectItem>
                   ))}
@@ -133,8 +154,12 @@ const CustosVariaveis = () => {
               />
             </div>
             <div className="md:col-span-3 flex gap-2">
-              <Button type="submit" className="bg-orange-600 hover:bg-orange-700">
-                Salvar
+              <Button 
+                type="submit" 
+                className="bg-orange-600 hover:bg-orange-700"
+                disabled={addCustoVariavelMutation.isPending}
+              >
+                {addCustoVariavelMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
@@ -192,9 +217,9 @@ const CustosVariaveis = () => {
             <tbody>
               {filteredCustos.map((custo) => (
                 <tr key={custo.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-gray-900">{custo.categoria}</td>
+                  <td className="py-3 px-4 text-gray-900">{custo.categoria?.nome || 'Sem categoria'}</td>
                   <td className="py-3 px-4 font-medium text-orange-600">
-                    {formatCurrency(custo.valor)}
+                    {formatCurrency(Number(custo.valor))}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
                     {new Date(custo.data).toLocaleDateString('pt-BR')}

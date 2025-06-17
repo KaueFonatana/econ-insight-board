@@ -9,7 +9,128 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      categorias: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      clientes: {
+        Row: {
+          created_at: string
+          data_pagamento: string
+          id: string
+          nome: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data_pagamento: string
+          id?: string
+          nome: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data_pagamento?: string
+          id?: string
+          nome?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      custos_fixos: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          nome: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          nome: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          nome?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      custos_variaveis: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          data: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          data: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          data?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custos_variaveis_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funcionarios: {
+        Row: {
+          created_at: string
+          data_vencimento: string
+          id: string
+          nome: string
+          salario: number
+        }
+        Insert: {
+          created_at?: string
+          data_vencimento: string
+          id?: string
+          nome: string
+          salario: number
+        }
+        Update: {
+          created_at?: string
+          data_vencimento?: string
+          id?: string
+          nome?: string
+          salario?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -5,34 +5,51 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useCategorias, useAddCategoria, useCustosVariaveis } from '@/hooks/useSupabaseFinancialData';
+import { useToast } from '@/hooks/use-toast';
 
 const Categorias = () => {
-  const { data, addCategoria } = useFinancialData();
+  const { data: categorias = [], isLoading } = useCategorias();
+  const { data: custosVariaveis = [] } = useCustosVariaveis();
+  const addCategoriaMutation = useAddCategoria();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nome) {
-      addCategoria({
-        nome: formData.nome,
-      });
-      setFormData({ nome: '' });
-      setShowForm(false);
+      try {
+        await addCategoriaMutation.mutateAsync({
+          nome: formData.nome,
+        });
+        setFormData({ nome: '' });
+        setShowForm(false);
+        toast({
+          title: "Sucesso!",
+          description: "Categoria adicionada com sucesso.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar categoria.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const filteredCategorias = data.categorias.filter(categoria =>
+  const filteredCategorias = categorias.filter(categoria =>
     categoria.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calcular uso das categorias
-  const categoriaUso = data.custosVariaveis.reduce((acc, custo) => {
-    acc[custo.categoria] = (acc[custo.categoria] || 0) + custo.valor;
+  const categoriaUso = custosVariaveis.reduce((acc, custo) => {
+    const categoriaNome = custo.categoria?.nome || 'Sem categoria';
+    acc[categoriaNome] = (acc[categoriaNome] || 0) + Number(custo.valor);
     return acc;
   }, {} as Record<string, number>);
 
@@ -42,6 +59,10 @@ const Categorias = () => {
       currency: 'BRL',
     }).format(value);
   };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -91,8 +112,12 @@ const Categorias = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
-                Salvar
+              <Button 
+                type="submit" 
+                className="bg-purple-600 hover:bg-purple-700"
+                disabled={addCategoriaMutation.isPending}
+              >
+                {addCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
@@ -126,7 +151,7 @@ const Categorias = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCategorias.map((categoria) => {
           const totalGasto = categoriaUso[categoria.nome] || 0;
-          const quantidadeUsos = data.custosVariaveis.filter(c => c.categoria === categoria.nome).length;
+          const quantidadeUsos = custosVariaveis.filter(c => c.categoria?.nome === categoria.nome).length;
           
           return (
             <Card key={categoria.id} className="p-6 hover:shadow-md transition-shadow">

@@ -4,11 +4,10 @@ import { DollarSign, TrendingUp, TrendingDown, Target, Calculator, Percent } fro
 import KPICard from '@/components/ui/KPICard';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useFinancialSummary } from '@/hooks/useSupabaseFinancialData';
 
 const ResumoFinanceiro = () => {
-  const { calculateFinancialSummary } = useFinancialData();
-  const summary = calculateFinancialSummary();
+  const summary = useFinancialSummary();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

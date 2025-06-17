@@ -6,10 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import useFinancialData from '@/hooks/useFinancialData';
+import { useCustosFixos, useAddCustoFixo } from '@/hooks/useSupabaseFinancialData';
+import { useToast } from '@/hooks/use-toast';
 
 const CustosFixos = () => {
-  const { data, addCustoFixo } = useFinancialData();
+  const { data: custosFixos = [], isLoading } = useCustosFixos();
+  const addCustoFixoMutation = useAddCustoFixo();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -18,16 +21,28 @@ const CustosFixos = () => {
     data: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nome && formData.valor && formData.data) {
-      addCustoFixo({
-        nome: formData.nome,
-        valor: parseFloat(formData.valor),
-        data: formData.data,
-      });
-      setFormData({ nome: '', valor: '', data: '' });
-      setShowForm(false);
+      try {
+        await addCustoFixoMutation.mutateAsync({
+          nome: formData.nome,
+          valor: parseFloat(formData.valor),
+          data: formData.data,
+        });
+        setFormData({ nome: '', valor: '', data: '' });
+        setShowForm(false);
+        toast({
+          title: "Sucesso!",
+          description: "Custo fixo adicionado com sucesso.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar custo fixo.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -38,15 +53,19 @@ const CustosFixos = () => {
     }).format(value);
   };
 
-  const filteredCustos = data.custosFixos.filter(custo =>
+  const filteredCustos = custosFixos.filter(custo =>
     custo.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalCustos = filteredCustos.reduce((sum, custo) => sum + custo.valor, 0);
+  const totalCustos = filteredCustos.reduce((sum, custo) => sum + Number(custo.valor), 0);
 
   const handleDateChange = (startDate: string, endDate: string) => {
     console.log('Filtro de data aplicado:', { startDate, endDate });
   };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -121,8 +140,12 @@ const CustosFixos = () => {
               />
             </div>
             <div className="md:col-span-3 flex gap-2">
-              <Button type="submit" className="bg-red-600 hover:bg-red-700">
-                Salvar
+              <Button 
+                type="submit" 
+                className="bg-red-600 hover:bg-red-700"
+                disabled={addCustoFixoMutation.isPending}
+              >
+                {addCustoFixoMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
@@ -168,7 +191,7 @@ const CustosFixos = () => {
                 <tr key={custo.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-gray-900">{custo.nome}</td>
                   <td className="py-3 px-4 font-medium text-red-600">
-                    {formatCurrency(custo.valor)}
+                    {formatCurrency(Number(custo.valor))}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
                     {new Date(custo.data).toLocaleDateString('pt-BR')}
