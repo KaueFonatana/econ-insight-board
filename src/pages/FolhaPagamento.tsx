@@ -238,7 +238,7 @@ const FolhaPagamento = () => {
             </thead>
             <tbody>
               {filteredFuncionarios.map((funcionario) => {
-                const vencimento = new Date(funcionario.dataVencimento);
+                const vencimento = new Date(funcionario.data_vencimento);
                 const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 3600 * 24));
                 const isVencimentoProximo = diasRestantes <= 7 && diasRestantes >= 0;
                 
@@ -249,7 +249,7 @@ const FolhaPagamento = () => {
                       {formatCurrency(funcionario.salario)}
                     </td>
                     <td className="py-3 px-4 text-gray-600">
-                      {new Date(funcionario.dataVencimento).toLocaleDateString('pt-BR')}
+                      {new Date(funcionario.data_vencimento).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${
@@ -308,19 +308,19 @@ const FolhaPagamento = () => {
           <div>
             <h4 className="font-medium text-gray-700 mb-3">Próximos Vencimentos</h4>
             <div className="space-y-2">
-              {data.funcionarios
-                .sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime())
+              {filteredFuncionarios
+                .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
                 .slice(0, 5)
                 .map((funcionario) => {
                   const diasRestantes = Math.ceil(
-                    (new Date(funcionario.dataVencimento).getTime() - hoje.getTime()) / (1000 * 3600 * 24)
+                    (new Date(funcionario.data_vencimento).getTime() - hoje.getTime()) / (1000 * 3600 * 24)
                   );
                   return (
                     <div key={funcionario.id} className="flex justify-between items-center">
                       <span className="text-gray-600">{funcionario.nome}</span>
                       <div className="text-right">
                         <span className="text-sm text-gray-500">
-                          {new Date(funcionario.dataVencimento).toLocaleDateString('pt-BR')}
+                          {new Date(funcionario.data_vencimento).toLocaleDateString('pt-BR')}
                         </span>
                         <div className={`text-xs ${
                           diasRestantes <= 7 ? 'text-orange-600' : 'text-gray-500'
