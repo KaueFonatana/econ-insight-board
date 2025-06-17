@@ -31,38 +31,38 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Layout />}>
-            <Route index element={
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <Dashboard />
               </Suspense>
             } />
-            <Route path="receitas" element={
+            <Route path="/receitas" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <Receitas />
               </Suspense>
             } />
-            <Route path="custos-fixos" element={
+            <Route path="/custos-fixos" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <CustosFixos />
               </Suspense>
             } />
-            <Route path="custos-variaveis" element={
+            <Route path="/custos-variaveis" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <CustosVariaveis />
               </Suspense>
             } />
-            <Route path="resumo-financeiro" element={
+            <Route path="/resumo-financeiro" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <ResumoFinanceiro />
               </Suspense>
             } />
-            <Route path="categorias" element={
+            <Route path="/categorias" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <Categorias />
               </Suspense>
             } />
-            <Route path="folha-pagamento" element={
+            <Route path="/folha-pagamento" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <FolhaPagamento />
               </Suspense>

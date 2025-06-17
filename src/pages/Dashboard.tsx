@@ -1,31 +1,12 @@
 
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, PieChart, Target } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Target } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, ResponsiveContainer } from 'recharts';
 import KPICard from '@/components/ui/KPICard';
 import DateFilter from '@/components/ui/DateFilter';
-import { useFinancialSummary, useClientes, useCustosFixos, useCustosVariaveis } from '@/hooks/useSupabaseFinancialData';
+import { useFinancialSummary } from '@/hooks/useSupabaseFinancialData';
 
 const Dashboard = () => {
   const summary = useFinancialSummary();
-  const { data: clientes = [] } = useClientes();
-  const { data: custosFixos = [] } = useCustosFixos();
-  const { data: custosVariaveis = [] } = useCustosVariaveis();
-
-  // Dados para gráficos baseados em dados reais
-  const monthlyData = [
-    { mes: 'Jan', receita: 15000, custos: 8000 },
-    { mes: 'Fev', receita: 18000, custos: 9000 },
-    { mes: 'Mar', receita: 16000, custos: 8500 },
-    { mes: 'Abr', receita: 20000, custos: 9500 },
-    { mes: 'Mai', receita: 22000, custos: 10000 },
-    { mes: 'Jun', receita: summary.receitaTotal, custos: summary.custosFixosTotal + summary.custosVariaveisTotal },
-  ];
-
-  const pieData = [
-    { name: 'Custos Fixos', value: summary.custosFixosTotal, color: '#ef4444' },
-    { name: 'Custos Variáveis', value: summary.custosVariaveisTotal, color: '#f97316' },
-    { name: 'Lucro', value: summary.lucroLiquido > 0 ? summary.lucroLiquido : 0, color: '#22c55e' },
-  ];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -37,6 +18,21 @@ const Dashboard = () => {
   const handleDateChange = (startDate: string, endDate: string) => {
     console.log('Filtro de data aplicado:', { startDate, endDate });
   };
+
+  // Dados para distribuição de custos apenas com dados reais
+  const pieData = [
+    { name: 'Custos Fixos', value: summary.custosFixosTotal, color: '#ef4444' },
+    { name: 'Custos Variáveis', value: summary.custosVariaveisTotal, color: '#f97316' },
+    { name: 'Lucro', value: summary.lucroLiquido > 0 ? summary.lucroLiquido : 0, color: '#22c55e' },
+  ].filter(item => item.value > 0); // Remove itens com valor zero
+
+  // Dados para comparação atual apenas com dados reais
+  const currentData = [
+    { name: 'Receitas', value: summary.receitaTotal, fill: '#22c55e' },
+    { name: 'Custos Fixos', value: summary.custosFixosTotal, fill: '#ef4444' },
+    { name: 'Custos Variáveis', value: summary.custosVariaveisTotal, fill: '#f97316' },
+    { name: 'Folha de Pagamento', value: summary.folhaPagamentoTotal, fill: '#8b5cf6' },
+  ].filter(item => item.value > 0); // Remove itens com valor zero
 
   return (
     <div className="space-y-6">
@@ -57,29 +53,24 @@ const Dashboard = () => {
           title="Receita Total"
           value={formatCurrency(summary.receitaTotal)}
           icon={DollarSign}
-          change="+12.5%"
           changeType="positive"
         />
         <KPICard
           title="Custos Totais"
           value={formatCurrency(summary.custosFixosTotal + summary.custosVariaveisTotal)}
           icon={TrendingDown}
-          change="+3.2%"
           changeType="negative"
         />
         <KPICard
           title="Lucro Líquido"
           value={formatCurrency(summary.lucroLiquido)}
           icon={TrendingUp}
-          change="+18.7%"
           changeType={summary.lucroLiquido > 0 ? "positive" : "negative"}
         />
         <KPICard
           title="Margem de Contribuição"
           value={`${summary.margemContribuicao.toFixed(1)}%`}
           icon={BarChart3}
-          change="+2.1%"
-          changeType="positive"
         />
         <KPICard
           title="Break Even"
@@ -93,76 +84,60 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico de Barras - Receita vs Custos */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Receita vs Custos Mensais</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Bar dataKey="receita" fill="#2563eb" name="Receita" />
-              <Bar dataKey="custos" fill="#dc2626" name="Custos" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Gráfico de Pizza - Distribuição de Custos */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribuição de Custos</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <RechartsPieChart>
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <RechartsPieChart dataKey="value">
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </RechartsPieChart>
-            </RechartsPieChart>
-          </ResponsiveContainer>
-          <div className="flex justify-center space-x-6 mt-4">
-            {pieData.map((item, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-sm text-gray-600">{item.name}</span>
-              </div>
-            ))}
+      {/* Gráficos apenas se houver dados */}
+      {currentData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gráfico de Barras - Dados Atuais */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Financeiro Atual</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={currentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Bar dataKey="value" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
-      </div>
 
-      {/* Gráfico de Linha - Evolução */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Evolução do Lucro</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={monthlyData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="mes" />
-            <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} />
-            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-            <Line 
-              type="monotone" 
-              dataKey="receita" 
-              stroke="#2563eb" 
-              strokeWidth={3}
-              name="Receita"
-            />
-            <Line 
-              type="monotone" 
-              dataKey="custos" 
-              stroke="#dc2626" 
-              strokeWidth={3}
-              name="Custos"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+          {/* Gráfico de Pizza - Distribuição de Custos */}
+          {pieData.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribuição de Custos</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsPieChart>
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <RechartsPieChart data={pieData} dataKey="value">
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </RechartsPieChart>
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center space-x-6 mt-4">
+                {pieData.map((item, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-sm text-gray-600">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mensagem quando não há dados */}
+      {currentData.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum dado disponível</h3>
+          <p className="text-gray-600">Adicione receitas, custos ou funcionários para visualizar os gráficos.</p>
+        </div>
+      )}
     </div>
   );
 };

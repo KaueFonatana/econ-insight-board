@@ -15,11 +15,11 @@ import {
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Painel', href: '/', icon: Home },
+  { name: 'Painel', href: '/dashboard', icon: Home },
   { name: 'Receitas', href: '/receitas', icon: TrendingUp },
   { name: 'Custos Fixos', href: '/custos-fixos', icon: Calendar },
   { name: 'Custos Variáveis', href: '/custos-variaveis', icon: TrendingDown },
-  { name: 'Resumo Financeiro', href: '/resumo', icon: BarChart3 },
+  { name: 'Resumo Financeiro', href: '/resumo-financeiro', icon: BarChart3 },
   { name: 'Categorias', href: '/categorias', icon: Tags },
   { name: 'Folha de Pagamento', href: '/folha-pagamento', icon: Users },
 ];
