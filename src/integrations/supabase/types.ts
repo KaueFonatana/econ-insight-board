@@ -107,6 +107,75 @@ export type Database = {
           },
         ]
       }
+      despesas_mensais: {
+        Row: {
+          categoria: string
+          created_at: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string
+          id: string
+          mes_referencia: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao: string
+          id?: string
+          mes_referencia: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string
+          id?: string
+          mes_referencia?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      despesas_modelo: {
+        Row: {
+          ativo: boolean
+          categoria: string
+          created_at: string
+          descricao: string
+          dia_vencimento: number
+          id: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          categoria: string
+          created_at?: string
+          descricao: string
+          dia_vencimento: number
+          id?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          descricao?: string
+          dia_vencimento?: number
+          id?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       funcionarios: {
         Row: {
           created_at: string

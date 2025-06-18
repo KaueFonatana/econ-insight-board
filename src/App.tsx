@@ -13,6 +13,7 @@ const CustosVariaveis = lazy(() => import("@/pages/CustosVariaveis"));
 const ResumoFinanceiro = lazy(() => import("@/pages/ResumoFinanceiro"));
 const Categorias = lazy(() => import("@/pages/Categorias"));
 const FolhaPagamento = lazy(() => import("@/pages/FolhaPagamento"));
+const Despesas = lazy(() => import("@/pages/Despesas"));
 const Index = lazy(() => import("@/pages/Index"));
 
 const queryClient = new QueryClient({
@@ -50,6 +51,11 @@ const App = () => (
             <Route path="/custos-variaveis" element={
               <Suspense fallback={<div>Carregando...</div>}>
                 <CustosVariaveis />
+              </Suspense>
+            } />
+            <Route path="/despesas" element={
+              <Suspense fallback={<div>Carregando...</div>}>
+                <Despesas />
               </Suspense>
             } />
             <Route path="/resumo-financeiro" element={

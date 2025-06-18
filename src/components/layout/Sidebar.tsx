@@ -10,7 +10,8 @@ import {
   Tags,
   Users,
   Menu,
-  X
+  X,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Receitas', href: '/receitas', icon: TrendingUp },
   { name: 'Custos Fixos', href: '/custos-fixos', icon: Calendar },
   { name: 'Custos Variáveis', href: '/custos-variaveis', icon: TrendingDown },
+  { name: 'Despesas', href: '/despesas', icon: Receipt },
   { name: 'Resumo Financeiro', href: '/resumo-financeiro', icon: BarChart3 },
   { name: 'Categorias', href: '/categorias', icon: Tags },
   { name: 'Folha de Pagamento', href: '/folha-pagamento', icon: Users },
