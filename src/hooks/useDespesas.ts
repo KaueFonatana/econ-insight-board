@@ -25,14 +25,21 @@ export interface DespesaModelo {
   updated_at: string;
 }
 
-export const useDespesasMensais = () => {
+export const useDespesasMensais = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['despesas_mensais'],
+    queryKey: ['despesas_mensais', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('despesas_mensais')
-        .select('*')
-        .order('data_vencimento', { ascending: true });
+        .select('*');
+      
+      if (startDate && endDate) {
+        query = query
+          .gte('data_vencimento', startDate)
+          .lte('data_vencimento', endDate);
+      }
+      
+      const { data, error } = await query.order('data_vencimento', { ascending: false });
       
       if (error) throw error;
       return data as DespesaMensal[];

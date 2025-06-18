@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,9 @@ import { useClientes, useAddCliente, useUpdateCliente, useDeleteCliente, Cliente
 import { useToast } from '@/hooks/use-toast';
 
 const Receitas = () => {
-  const { data: clientes = [], isLoading } = useClientes();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const { data: clientes = [], isLoading } = useClientes(startDate, endDate);
   const addClienteMutation = useAddCliente();
   const updateClienteMutation = useUpdateCliente();
   const deleteClienteMutation = useDeleteCliente();
@@ -109,8 +110,10 @@ const Receitas = () => {
 
   const totalReceitas = filteredClientes.reduce((sum, cliente) => sum + Number(cliente.valor), 0);
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('Filtro de data aplicado:', { startDate, endDate });
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    console.log('Filtro de data aplicado:', { startDate: newStartDate, endDate: newEndDate });
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
   };
 
   if (isLoading) {

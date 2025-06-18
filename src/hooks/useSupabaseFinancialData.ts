@@ -36,14 +36,21 @@ export interface Funcionario {
   data_vencimento: string;
 }
 
-export const useClientes = () => {
+export const useClientes = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['clientes'],
+    queryKey: ['clientes', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('clientes')
-        .select('*')
-        .order('data_pagamento', { ascending: false });
+        .select('*');
+      
+      if (startDate && endDate) {
+        query = query
+          .gte('data_pagamento', startDate)
+          .lte('data_pagamento', endDate);
+      }
+      
+      const { data, error } = await query.order('data_pagamento', { ascending: false });
       
       if (error) throw error;
       return data as Cliente[];
@@ -51,14 +58,21 @@ export const useClientes = () => {
   });
 };
 
-export const useCustosFixos = () => {
+export const useCustosFixos = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['custos_fixos'],
+    queryKey: ['custos_fixos', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('custos_fixos')
-        .select('*')
-        .order('data', { ascending: false });
+        .select('*');
+      
+      if (startDate && endDate) {
+        query = query
+          .gte('data', startDate)
+          .lte('data', endDate);
+      }
+      
+      const { data, error } = await query.order('data', { ascending: false });
       
       if (error) throw error;
       return data as CustoFixo[];
@@ -66,17 +80,24 @@ export const useCustosFixos = () => {
   });
 };
 
-export const useCustosVariaveis = () => {
+export const useCustosVariaveis = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['custos_variaveis'],
+    queryKey: ['custos_variaveis', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('custos_variaveis')
         .select(`
           *,
           categoria:categorias(nome)
-        `)
-        .order('data', { ascending: false });
+        `);
+      
+      if (startDate && endDate) {
+        query = query
+          .gte('data', startDate)
+          .lte('data', endDate);
+      }
+      
+      const { data, error } = await query.order('data', { ascending: false });
       
       if (error) throw error;
       return data as CustoVariavel[];
@@ -99,14 +120,21 @@ export const useCategorias = () => {
   });
 };
 
-export const useFuncionarios = () => {
+export const useFuncionarios = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['funcionarios'],
+    queryKey: ['funcionarios', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('funcionarios')
-        .select('*')
-        .order('data_vencimento');
+        .select('*');
+      
+      if (startDate && endDate) {
+        query = query
+          .gte('data_vencimento', startDate)
+          .lte('data_vencimento', endDate);
+      }
+      
+      const { data, error } = await query.order('data_vencimento');
       
       if (error) throw error;
       return data as Funcionario[];
@@ -409,11 +437,11 @@ export const useDeleteFuncionario = () => {
   });
 };
 
-export const useFinancialSummary = () => {
-  const { data: clientes = [] } = useClientes();
-  const { data: custosFixos = [] } = useCustosFixos();
-  const { data: custosVariaveis = [] } = useCustosVariaveis();
-  const { data: funcionarios = [] } = useFuncionarios();
+export const useFinancialSummary = (startDate?: string, endDate?: string) => {
+  const { data: clientes = [] } = useClientes(startDate, endDate);
+  const { data: custosFixos = [] } = useCustosFixos(startDate, endDate);
+  const { data: custosVariaveis = [] } = useCustosVariaveis(startDate, endDate);
+  const { data: funcionarios = [] } = useFuncionarios(startDate, endDate);
 
   const calculateFinancialSummary = () => {
     const receitaTotal = clientes.reduce((sum, cliente) => sum + Number(cliente.valor), 0);

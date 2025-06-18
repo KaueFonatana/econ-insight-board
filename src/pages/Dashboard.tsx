@@ -1,12 +1,15 @@
-
 import { DollarSign, TrendingUp, TrendingDown, BarChart3, Target } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, ResponsiveContainer } from 'recharts';
 import KPICard from '@/components/ui/KPICard';
 import DateFilter from '@/components/ui/DateFilter';
 import { useFinancialSummary } from '@/hooks/useSupabaseFinancialData';
+import { useState } from 'react';
 
 const Dashboard = () => {
-  const summary = useFinancialSummary();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
+  const summary = useFinancialSummary(startDate, endDate);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -15,8 +18,10 @@ const Dashboard = () => {
     }).format(value);
   };
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('Filtro de data aplicado:', { startDate, endDate });
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    console.log('Filtro de data aplicado:', { startDate: newStartDate, endDate: newEndDate });
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
   };
 
   // Dados para distribuição de custos apenas com dados reais

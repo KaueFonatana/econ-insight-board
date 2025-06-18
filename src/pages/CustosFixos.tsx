@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,9 @@ import { useCustosFixos, useAddCustoFixo, useUpdateCustoFixo, useDeleteCustoFixo
 import { useToast } from '@/hooks/use-toast';
 
 const CustosFixos = () => {
-  const { data: custosFixos = [], isLoading } = useCustosFixos();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const { data: custosFixos = [], isLoading } = useCustosFixos(startDate, endDate);
   const addCustoFixoMutation = useAddCustoFixo();
   const updateCustoFixoMutation = useUpdateCustoFixo();
   const deleteCustoFixoMutation = useDeleteCustoFixo();
@@ -109,8 +110,10 @@ const CustosFixos = () => {
 
   const totalCustos = filteredCustos.reduce((sum, custo) => sum + Number(custo.valor), 0);
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('Filtro de data aplicado:', { startDate, endDate });
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    console.log('Filtro de data aplicado:', { startDate: newStartDate, endDate: newEndDate });
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
   };
 
   if (isLoading) {

@@ -1,68 +1,41 @@
-
 import { useState, useMemo } from 'react';
-import { Plus, Search, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, Search, DollarSign, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DateFilter from '@/components/ui/DateFilter';
 import EditDeleteActions from '@/components/ui/EditDeleteActions';
 import DespesaChart from './DespesaChart';
-import { useDespesasMensais, useAddDespesaMensal, useUpdateDespesaMensal, useDeleteDespesaMensal, useMarcarComoPago, useGerarNovoMes, DespesaMensal } from '@/hooks/useDespesas';
+import { useDespesasMensais, useAddDespesaMensal, useUpdateDespesaMensal, useDeleteDespesaMensal, useMarkDespesaPaid, DespesaMensal } from '@/hooks/useDespesas';
 import { useToast } from '@/hooks/use-toast';
 
 const DespesasMensais = () => {
-  const { data: despesas = [], isLoading } = useDespesasMensais();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const { data: despesas = [], isLoading } = useDespesasMensais(startDate, endDate);
   const addDespesaMutation = useAddDespesaMensal();
   const updateDespesaMutation = useUpdateDespesaMensal();
   const deleteDespesaMutation = useDeleteDespesaMensal();
-  const marcarComoPagoMutation = useMarcarComoPago();
-  const gerarNovoMesMutation = useGerarNovoMes();
+  const markDespesaPaidMutation = useMarkDespesaPaid();
   const { toast } = useToast();
-
   const [showForm, setShowForm] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaMensal | null>(null);
-  const [filtroMes, setFiltroMes] = useState('todos');
-  const [filtroStatus, setFiltroStatus] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [formData, setFormData] = useState({
     descricao: '',
     categoria: '',
     valor: '',
     data_vencimento: '',
+    data_pagamento: '',
     mes_referencia: '',
   });
 
-  const mesesDisponiveis = useMemo(() => {
-    const meses = new Set(despesas.map(d => d.mes_referencia));
-    return Array.from(meses).sort();
-  }, [despesas]);
-
-  const despesasFiltradas = useMemo(() => {
-    return despesas.filter(despesa => {
-      const matchMes = filtroMes === 'todos' || despesa.mes_referencia === filtroMes;
-      const matchStatus = filtroStatus === 'todos' || 
-        (filtroStatus === 'pago' && despesa.data_pagamento) ||
-        (filtroStatus === 'pendente' && !despesa.data_pagamento);
-      const matchSearch = despesa.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        despesa.categoria.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchMes && matchStatus && matchSearch;
-    });
-  }, [despesas, filtroMes, filtroStatus, searchTerm]);
-
-  const totais = useMemo(() => {
-    const totalPrevisto = despesasFiltradas.reduce((sum, d) => sum + Number(d.valor), 0);
-    const totalPago = despesasFiltradas.filter(d => d.data_pagamento).reduce((sum, d) => sum + Number(d.valor), 0);
-    const totalPendente = totalPrevisto - totalPago;
-    const percentualExecucao = totalPrevisto > 0 ? (totalPago / totalPrevisto) * 100 : 0;
-
-    return { totalPrevisto, totalPago, totalPendente, percentualExecucao };
-  }, [despesasFiltradas]);
-
   const resetForm = () => {
-    setFormData({ descricao: '', categoria: '', valor: '', data_vencimento: '', mes_referencia: '' });
+    setFormData({ descricao: '', categoria: '', valor: '', data_vencimento: '', data_pagamento: '', mes_referencia: '' });
     setEditingDespesa(null);
     setShowForm(false);
   };
@@ -74,6 +47,7 @@ const DespesasMensais = () => {
       categoria: despesa.categoria,
       valor: despesa.valor.toString(),
       data_vencimento: despesa.data_vencimento,
+      data_pagamento: despesa.data_pagamento || '',
       mes_referencia: despesa.mes_referencia,
     });
     setShowForm(true);
@@ -97,9 +71,9 @@ const DespesasMensais = () => {
     }
   };
 
-  const handleMarcarComoPago = async (id: string) => {
+  const handleMarkAsPaid = async (id: string) => {
     try {
-      await marcarComoPagoMutation.mutateAsync(id);
+      await markDespesaPaidMutation.mutateAsync(id);
       toast({
         title: "Sucesso!",
         description: "Despesa marcada como paga.",
@@ -122,6 +96,7 @@ const DespesasMensais = () => {
           categoria: formData.categoria,
           valor: parseFloat(formData.valor),
           data_vencimento: formData.data_vencimento,
+          data_pagamento: formData.data_pagamento || null,
           mes_referencia: formData.mes_referencia,
         };
 
@@ -152,26 +127,6 @@ const DespesasMensais = () => {
     }
   };
 
-  const handleGerarNovoMes = async () => {
-    const proximoMes = new Date();
-    proximoMes.setMonth(proximoMes.getMonth() + 1);
-    const mesReferencia = `${String(proximoMes.getMonth() + 1).padStart(2, '0')}/${proximoMes.getFullYear()}`;
-    
-    try {
-      await gerarNovoMesMutation.mutateAsync(mesReferencia);
-      toast({
-        title: "Sucesso!",
-        description: `Despesas do mês ${mesReferencia} geradas com sucesso.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao gerar despesas do novo mês.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -179,139 +134,111 @@ const DespesasMensais = () => {
     }).format(value);
   };
 
-  const getStatusBadge = (despesa: DespesaMensal) => {
-    if (despesa.data_pagamento) {
-      return <Badge className="bg-green-100 text-green-800">Pago</Badge>;
-    }
-    return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
-  };
+  const filteredDespesas = useMemo(() => {
+    return despesas.filter(despesa =>
+      despesa.descricao.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (categoryFilter === '' || despesa.categoria === categoryFilter)
+    );
+  }, [despesas, searchTerm, categoryFilter]);
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Carregando...</div>;
-  }
+  const totalDespesas = filteredDespesas.reduce((sum, despesa) => sum + Number(despesa.valor), 0);
+
+  const totalDespesasPagas = filteredDespesas.filter(despesa => despesa.data_pagamento).reduce((sum, despesa) => sum + Number(despesa.valor), 0);
+
+  const totalDespesasPendentes = totalDespesas - totalDespesasPagas;
+
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    console.log('Filtro de data aplicado na tela de despesas:', { startDate: newStartDate, endDate: newEndDate });
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
 
   return (
     <div className="space-y-6">
+      {/* Filtros de Data */}
+      <DateFilter onDateChange={handleDateChange} />
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Despesas Mensais</h2>
-          <p className="text-gray-600 mt-1">Controle de despesas pagas e pendentes</p>
+          <h1 className="text-3xl font-bold text-gray-900">Despesas Mensais</h1>
+          <p className="text-gray-600 mt-1">Gerencie suas despesas mensais</p>
         </div>
-        <div className="flex gap-2 mt-4 lg:mt-0">
-          <Button 
-            onClick={handleGerarNovoMes}
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={gerarNovoMesMutation.isPending}
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            {gerarNovoMesMutation.isPending ? 'Gerando...' : 'Gerar Novo Mês'}
-          </Button>
-          <Button 
-            onClick={() => setShowForm(!showForm)}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Despesa
-          </Button>
-        </div>
+        <Button
+          onClick={() => setShowForm(!showForm)}
+          className="mt-4 lg:mt-0 bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Despesa
+        </Button>
       </div>
 
-      {/* Filtros */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      {/* Filtros e Busca */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-4">
-          <Label htmlFor="filtro-mes">Filtrar por Mês</Label>
-          <Select value={filtroMes} onValueChange={setFiltroMes}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos os meses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os meses</SelectItem>
-              {mesesDisponiveis.map(mes => (
-                <SelectItem key={mes} value={mes}>{mes}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Card>
-
-        <Card className="p-4">
-          <Label htmlFor="filtro-status">Filtrar por Status</Label>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pago">Pago</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-            </SelectContent>
-          </Select>
-        </Card>
-
-        <Card className="p-4 lg:col-span-2">
-          <Label htmlFor="search">Buscar</Label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              id="search"
-              placeholder="Buscar por descrição ou categoria..."
+              placeholder="Buscar despesa..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
         </Card>
+        <Card className="p-4">
+          <Label htmlFor="categoria">Filtrar por Categoria</Label>
+          <Select onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Todas as Categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas as Categorias</SelectItem>
+              <SelectItem value="Alimentação">Alimentação</SelectItem>
+              <SelectItem value="Transporte">Transporte</SelectItem>
+              <SelectItem value="Moradia">Moradia</SelectItem>
+              {/* Adicione mais categorias conforme necessário */}
+            </SelectContent>
+          </Select>
+        </Card>
+        <Card className="p-4 flex items-center">
+          <div className="flex flex-col items-start">
+            <h3 className="text-lg font-semibold text-gray-900">Total de Despesas</h3>
+            <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalDespesas)}</p>
+          </div>
+        </Card>
       </div>
 
-      {/* Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-600">Total Previsto</h3>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(totais.totalPrevisto)}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-600">Total Pago</h3>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(totais.totalPago)}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-600">Total Pendente</h3>
-          <p className="text-2xl font-bold text-yellow-600">{formatCurrency(totais.totalPendente)}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="text-sm font-medium text-gray-600">% Execução</h3>
-          <p className="text-2xl font-bold text-purple-600">{totais.percentualExecucao.toFixed(1)}%</p>
-        </Card>
-      </div>
-
-      {/* Gráfico */}
-      {filtroMes !== 'todos' && <DespesaChart despesas={despesasFiltradas} />}
-
-      {/* Formulário */}
+      {/* Formulário de Nova/Editar Despesa */}
       {showForm && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {editingDespesa ? 'Editar Despesa' : 'Nova Despesa'}
           </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="descricao">Descrição</Label>
               <Input
                 id="descricao"
                 value={formData.descricao}
                 onChange={(e) => setFormData({...formData, descricao: e.target.value})}
-                placeholder="Ex: Aluguel..."
+                placeholder="Ex: Aluguel, Supermercado..."
                 required
               />
             </div>
             <div>
               <Label htmlFor="categoria">Categoria</Label>
-              <Input
-                id="categoria"
-                value={formData.categoria}
-                onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                placeholder="Ex: Fixos..."
-                required
-              />
+              <Select onValueChange={(value) => setFormData({...formData, categoria: value})}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione a Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Alimentação">Alimentação</SelectItem>
+                  <SelectItem value="Transporte">Transporte</SelectItem>
+                  <SelectItem value="Moradia">Moradia</SelectItem>
+                  {/* Adicione mais categorias conforme necessário */}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="valor">Valor</Label>
@@ -326,7 +253,7 @@ const DespesasMensais = () => {
               />
             </div>
             <div>
-              <Label htmlFor="data_vencimento">Data Vencimento</Label>
+              <Label htmlFor="data_vencimento">Data de Vencimento</Label>
               <Input
                 id="data_vencimento"
                 type="date"
@@ -336,26 +263,35 @@ const DespesasMensais = () => {
               />
             </div>
             <div>
-              <Label htmlFor="mes_referencia">Mês Referência</Label>
+              <Label htmlFor="data_pagamento">Data de Pagamento (Opcional)</Label>
+              <Input
+                id="data_pagamento"
+                type="date"
+                value={formData.data_pagamento}
+                onChange={(e) => setFormData({...formData, data_pagamento: e.target.value})}
+              />
+            </div>
+            <div>
+              <Label htmlFor="mes_referencia">Mês de Referência</Label>
               <Input
                 id="mes_referencia"
+                type="month"
                 value={formData.mes_referencia}
                 onChange={(e) => setFormData({...formData, mes_referencia: e.target.value})}
-                placeholder="MM/YYYY"
                 required
               />
             </div>
-            <div className="md:col-span-5 flex gap-2">
-              <Button 
-                type="submit" 
-                className="bg-red-600 hover:bg-red-700"
+            <div className="md:col-span-3 flex gap-2">
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700"
                 disabled={addDespesaMutation.isPending || updateDespesaMutation.isPending}
               >
-                {addDespesaMutation.isPending || updateDespesaMutation.isPending ? 'Salvando...' : 
+                {addDespesaMutation.isPending || updateDespesaMutation.isPending ? 'Salvando...' :
                  editingDespesa ? 'Atualizar' : 'Salvar'}
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="outline"
                 onClick={resetForm}
               >
@@ -365,6 +301,43 @@ const DespesasMensais = () => {
           </form>
         </Card>
       )}
+
+      {/* Resumo Financeiro */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center space-x-3">
+            <DollarSign className="h-6 w-6 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total de Despesas</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalDespesas)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Despesas Pagas</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalDespesasPagas)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center space-x-3">
+            <Clock className="h-6 w-6 text-red-600" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Despesas Pendentes</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesasPendentes)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <DespesaChart despesas={filteredDespesas} />
+        </Card>
+      </div>
 
       {/* Lista de Despesas */}
       <Card className="p-6">
@@ -378,47 +351,34 @@ const DespesasMensais = () => {
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Valor</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Vencimento</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Pagamento</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Mês</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Mês Referência</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {despesasFiltradas.map((despesa) => (
+              {filteredDespesas.map((despesa) => (
                 <tr key={despesa.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-gray-900">{despesa.descricao}</td>
                   <td className="py-3 px-4 text-gray-600">{despesa.categoria}</td>
-                  <td className="py-3 px-4 font-medium text-red-600">
+                  <td className="py-3 px-4 font-medium text-blue-600">
                     {formatCurrency(Number(despesa.valor))}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
                     {new Date(despesa.data_vencimento).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
-                    {despesa.data_pagamento ? 
-                      new Date(despesa.data_pagamento).toLocaleDateString('pt-BR') : '-'}
+                    {despesa.data_pagamento ? new Date(despesa.data_pagamento).toLocaleDateString('pt-BR') :
+                     <Badge variant="outline">Pendente</Badge>}
                   </td>
-                  <td className="py-3 px-4">{getStatusBadge(despesa)}</td>
                   <td className="py-3 px-4 text-gray-600">{despesa.mes_referencia}</td>
                   <td className="py-3 px-4">
-                    <div className="flex gap-2">
-                      {!despesa.data_pagamento && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleMarcarComoPago(despesa.id)}
-                          className="text-green-600 hover:text-green-700"
-                          disabled={marcarComoPagoMutation.isPending}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <EditDeleteActions
-                        onEdit={() => handleEdit(despesa)}
-                        onDelete={() => handleDelete(despesa.id)}
-                        isLoading={deleteDespesaMutation.isPending}
-                      />
-                    </div>
+                    <EditDeleteActions
+                      onEdit={() => handleEdit(despesa)}
+                      onDelete={() => handleDelete(despesa.id)}
+                      onMarkAsPaid={() => handleMarkAsPaid(despesa.id)}
+                      isLoading={deleteDespesaMutation.isPending || markDespesaPaidMutation.isPending}
+                      isPaid={!!despesa.data_pagamento}
+                    />
                   </td>
                 </tr>
               ))}

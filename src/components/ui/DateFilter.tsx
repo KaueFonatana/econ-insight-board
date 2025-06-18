@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,21 @@ import { cn } from '@/lib/utils';
 interface DateFilterProps {
   onDateChange: (startDate: string, endDate: string) => void;
   className?: string;
+  initialStartDate?: string;
+  initialEndDate?: string;
 }
 
-const DateFilter = ({ onDateChange, className }: DateFilterProps) => {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+const DateFilter = ({ onDateChange, className, initialStartDate, initialEndDate }: DateFilterProps) => {
+  const [startDate, setStartDate] = useState(initialStartDate || '');
+  const [endDate, setEndDate] = useState(initialEndDate || '');
+
+  useEffect(() => {
+    if (initialStartDate && initialEndDate) {
+      setStartDate(initialStartDate);
+      setEndDate(initialEndDate);
+      onDateChange(initialStartDate, initialEndDate);
+    }
+  }, [initialStartDate, initialEndDate, onDateChange]);
 
   const handleQuickFilter = (days: number) => {
     const end = new Date();
@@ -52,6 +62,12 @@ const DateFilter = ({ onDateChange, className }: DateFilterProps) => {
     setStartDate(startStr);
     setEndDate(endStr);
     onDateChange(startStr, endStr);
+  };
+
+  const handleClearFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    onDateChange('', '');
   };
 
   return (
@@ -123,6 +139,14 @@ const DateFilter = ({ onDateChange, className }: DateFilterProps) => {
           onClick={handlePreviousMonth}
         >
           Mês Anterior
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleClearFilter}
+          className="text-red-600 hover:text-red-700"
+        >
+          Limpar Filtros
         </Button>
       </div>
     </div>

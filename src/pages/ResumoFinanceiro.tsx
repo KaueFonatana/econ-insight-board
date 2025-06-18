@@ -1,4 +1,4 @@
-
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DollarSign, TrendingUp, TrendingDown, Target, Calculator, Percent } from 'lucide-react';
 import KPICard from '@/components/ui/KPICard';
@@ -7,7 +7,10 @@ import DateFilter from '@/components/ui/DateFilter';
 import { useFinancialSummary } from '@/hooks/useSupabaseFinancialData';
 
 const ResumoFinanceiro = () => {
-  const summary = useFinancialSummary();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
+  const summary = useFinancialSummary(startDate, endDate);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -20,8 +23,10 @@ const ResumoFinanceiro = () => {
     return `${value.toFixed(1)}%`;
   };
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('Filtro de data aplicado:', { startDate, endDate });
+  const handleDateChange = (newStartDate: string, newEndDate: string) => {
+    console.log('Filtro de data aplicado:', { startDate: newStartDate, endDate: newEndDate });
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
   };
 
   // Dados para o gráfico comparativo
