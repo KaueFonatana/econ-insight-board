@@ -1,21 +1,25 @@
 
 import { useState } from 'react';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DateFilter from '@/components/ui/DateFilter';
-import { useCustosVariaveis, useAddCustoVariavel, useCategorias } from '@/hooks/useSupabaseFinancialData';
+import EditDeleteActions from '@/components/ui/EditDeleteActions';
+import { useCustosVariaveis, useAddCustoVariavel, useUpdateCustoVariavel, useDeleteCustoVariavel, useCategorias, CustoVariavel } from '@/hooks/useSupabaseFinancialData';
 import { useToast } from '@/hooks/use-toast';
 
 const CustosVariaveis = () => {
   const { data: custosVariaveis = [], isLoading } = useCustosVariaveis();
   const { data: categorias = [] } = useCategorias();
   const addCustoVariavelMutation = useAddCustoVariavel();
+  const updateCustoVariavelMutation = useUpdateCustoVariavel();
+  const deleteCustoVariavelMutation = useDeleteCustoVariavel();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingCusto, setEditingCusto] = useState<CustoVariavel | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     categoria_id: '',
@@ -23,25 +27,71 @@ const CustosVariaveis = () => {
     data: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.categoria_id && formData.valor && formData.data) {
+  const resetForm = () => {
+    setFormData({ categoria_id: '', valor: '', data: '' });
+    setEditingCusto(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (custo: CustoVariavel) => {
+    setEditingCusto(custo);
+    setFormData({
+      categoria_id: custo.categoria_id,
+      valor: custo.valor.toString(),
+      data: custo.data,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este custo variável?')) {
       try {
-        await addCustoVariavelMutation.mutateAsync({
-          categoria_id: formData.categoria_id,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-        });
-        setFormData({ categoria_id: '', valor: '', data: '' });
-        setShowForm(false);
+        await deleteCustoVariavelMutation.mutateAsync(id);
         toast({
           title: "Sucesso!",
-          description: "Custo variável adicionado com sucesso.",
+          description: "Custo variável excluído com sucesso.",
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao adicionar custo variável.",
+          description: "Erro ao excluir custo variável.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.categoria_id && formData.valor && formData.data) {
+      try {
+        const custoData = {
+          categoria_id: formData.categoria_id,
+          valor: parseFloat(formData.valor),
+          data: formData.data,
+        };
+
+        if (editingCusto) {
+          await updateCustoVariavelMutation.mutateAsync({
+            id: editingCusto.id,
+            ...custoData,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Custo variável atualizado com sucesso.",
+          });
+        } else {
+          await addCustoVariavelMutation.mutateAsync(custoData);
+          toast({
+            title: "Sucesso!",
+            description: "Custo variável adicionado com sucesso.",
+          });
+        }
+        resetForm();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: `Erro ao ${editingCusto ? 'atualizar' : 'adicionar'} custo variável.`,
           variant: "destructive",
         });
       }
@@ -111,10 +161,12 @@ const CustosVariaveis = () => {
         </Card>
       </div>
 
-      {/* Formulário de Novo Custo */}
+      {/* Formulário de Novo/Editar Custo */}
       {showForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Novo Custo Variável</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingCusto ? 'Editar Custo Variável' : 'Novo Custo Variável'}
+          </h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="categoria">Categoria</Label>
@@ -157,14 +209,15 @@ const CustosVariaveis = () => {
               <Button 
                 type="submit" 
                 className="bg-orange-600 hover:bg-orange-700"
-                disabled={addCustoVariavelMutation.isPending}
+                disabled={addCustoVariavelMutation.isPending || updateCustoVariavelMutation.isPending}
               >
-                {addCustoVariavelMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {addCustoVariavelMutation.isPending || updateCustoVariavelMutation.isPending ? 'Salvando...' : 
+                 editingCusto ? 'Atualizar' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
               >
                 Cancelar
               </Button>
@@ -225,9 +278,11 @@ const CustosVariaveis = () => {
                     {new Date(custo.data).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-3 px-4">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <EditDeleteActions
+                      onEdit={() => handleEdit(custo)}
+                      onDelete={() => handleDelete(custo.id)}
+                      isLoading={deleteCustoVariavelMutation.isPending}
+                    />
                   </td>
                 </tr>
               ))}

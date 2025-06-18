@@ -5,37 +5,94 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { useCategorias, useAddCategoria, useCustosVariaveis } from '@/hooks/useSupabaseFinancialData';
+import { useCategorias, useAddCategoria, useUpdateCategoria, useDeleteCategoria, useCustosVariaveis, Categoria } from '@/hooks/useSupabaseFinancialData';
 import { useToast } from '@/hooks/use-toast';
 
 const Categorias = () => {
   const { data: categorias = [], isLoading } = useCategorias();
   const { data: custosVariaveis = [] } = useCustosVariaveis();
   const addCategoriaMutation = useAddCategoria();
+  const updateCategoriaMutation = useUpdateCategoria();
+  const deleteCategoriaMutation = useDeleteCategoria();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.nome) {
+  const resetForm = () => {
+    setFormData({ nome: '' });
+    setEditingCategoria(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (categoria: Categoria) => {
+    setEditingCategoria(categoria);
+    setFormData({
+      nome: categoria.nome,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    // Verificar se a categoria está sendo usada
+    const categoriaEmUso = custosVariaveis.some(custo => custo.categoria_id === id);
+    
+    if (categoriaEmUso) {
+      toast({
+        title: "Erro",
+        description: "Não é possível excluir uma categoria que está sendo usada em custos variáveis.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (window.confirm('Tem certeza que deseja excluir esta categoria?')) {
       try {
-        await addCategoriaMutation.mutateAsync({
-          nome: formData.nome,
-        });
-        setFormData({ nome: '' });
-        setShowForm(false);
+        await deleteCategoriaMutation.mutateAsync(id);
         toast({
           title: "Sucesso!",
-          description: "Categoria adicionada com sucesso.",
+          description: "Categoria excluída com sucesso.",
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao adicionar categoria.",
+          description: "Erro ao excluir categoria.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.nome) {
+      try {
+        if (editingCategoria) {
+          await updateCategoriaMutation.mutateAsync({
+            id: editingCategoria.id,
+            nome: formData.nome,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Categoria atualizada com sucesso.",
+          });
+        } else {
+          await addCategoriaMutation.mutateAsync({
+            nome: formData.nome,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Categoria adicionada com sucesso.",
+          });
+        }
+        resetForm();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: `Erro ao ${editingCategoria ? 'atualizar' : 'adicionar'} categoria.`,
           variant: "destructive",
         });
       }
@@ -94,10 +151,12 @@ const Categorias = () => {
         </div>
       </Card>
 
-      {/* Formulário de Nova Categoria */}
+      {/* Formulário de Nova/Editar Categoria */}
       {showForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Nova Categoria</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingCategoria ? 'Editar Categoria' : 'Nova Categoria'}
+          </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -115,14 +174,15 @@ const Categorias = () => {
               <Button 
                 type="submit" 
                 className="bg-purple-600 hover:bg-purple-700"
-                disabled={addCategoriaMutation.isPending}
+                disabled={addCategoriaMutation.isPending || updateCategoriaMutation.isPending}
               >
-                {addCategoriaMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {addCategoriaMutation.isPending || updateCategoriaMutation.isPending ? 'Salvando...' : 
+                 editingCategoria ? 'Atualizar' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
               >
                 Cancelar
               </Button>
@@ -152,16 +212,29 @@ const Categorias = () => {
         {filteredCategorias.map((categoria) => {
           const totalGasto = categoriaUso[categoria.nome] || 0;
           const quantidadeUsos = custosVariaveis.filter(c => c.categoria?.nome === categoria.nome).length;
+          const categoriaEmUso = quantidadeUsos > 0;
           
           return (
             <Card key={categoria.id} className="p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">{categoria.nome}</h3>
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEdit(categoria)}
+                    disabled={deleteCategoriaMutation.isPending}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={categoriaEmUso ? "text-gray-400" : "text-red-600 hover:text-red-700"}
+                    onClick={() => handleDelete(categoria.id)}
+                    disabled={categoriaEmUso || deleteCategoriaMutation.isPending}
+                    title={categoriaEmUso ? "Categoria em uso, não pode ser excluída" : "Excluir categoria"}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

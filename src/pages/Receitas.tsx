@@ -1,19 +1,23 @@
 
 import { useState } from 'react';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import { useClientes, useAddCliente } from '@/hooks/useSupabaseFinancialData';
+import EditDeleteActions from '@/components/ui/EditDeleteActions';
+import { useClientes, useAddCliente, useUpdateCliente, useDeleteCliente, Cliente } from '@/hooks/useSupabaseFinancialData';
 import { useToast } from '@/hooks/use-toast';
 
 const Receitas = () => {
   const { data: clientes = [], isLoading } = useClientes();
   const addClienteMutation = useAddCliente();
+  const updateClienteMutation = useUpdateCliente();
+  const deleteClienteMutation = useDeleteCliente();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
@@ -21,25 +25,71 @@ const Receitas = () => {
     data_pagamento: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.nome && formData.valor && formData.data_pagamento) {
+  const resetForm = () => {
+    setFormData({ nome: '', valor: '', data_pagamento: '' });
+    setEditingCliente(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (cliente: Cliente) => {
+    setEditingCliente(cliente);
+    setFormData({
+      nome: cliente.nome,
+      valor: cliente.valor.toString(),
+      data_pagamento: cliente.data_pagamento,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta receita?')) {
       try {
-        await addClienteMutation.mutateAsync({
-          nome: formData.nome,
-          valor: parseFloat(formData.valor),
-          data_pagamento: formData.data_pagamento,
-        });
-        setFormData({ nome: '', valor: '', data_pagamento: '' });
-        setShowForm(false);
+        await deleteClienteMutation.mutateAsync(id);
         toast({
           title: "Sucesso!",
-          description: "Cliente adicionado com sucesso.",
+          description: "Receita excluída com sucesso.",
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao adicionar cliente.",
+          description: "Erro ao excluir receita.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.nome && formData.valor && formData.data_pagamento) {
+      try {
+        const clienteData = {
+          nome: formData.nome,
+          valor: parseFloat(formData.valor),
+          data_pagamento: formData.data_pagamento,
+        };
+
+        if (editingCliente) {
+          await updateClienteMutation.mutateAsync({
+            id: editingCliente.id,
+            ...clienteData,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Receita atualizada com sucesso.",
+          });
+        } else {
+          await addClienteMutation.mutateAsync(clienteData);
+          toast({
+            title: "Sucesso!",
+            description: "Receita adicionada com sucesso.",
+          });
+        }
+        resetForm();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: `Erro ao ${editingCliente ? 'atualizar' : 'adicionar'} receita.`,
           variant: "destructive",
         });
       }
@@ -102,10 +152,12 @@ const Receitas = () => {
         </Card>
       </div>
 
-      {/* Formulário de Nova Receita */}
+      {/* Formulário de Nova/Editar Receita */}
       {showForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Nova Receita</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingCliente ? 'Editar Receita' : 'Nova Receita'}
+          </h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="nome">Nome do Cliente</Label>
@@ -143,14 +195,15 @@ const Receitas = () => {
               <Button 
                 type="submit" 
                 className="bg-blue-600 hover:bg-blue-700"
-                disabled={addClienteMutation.isPending}
+                disabled={addClienteMutation.isPending || updateClienteMutation.isPending}
               >
-                {addClienteMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {addClienteMutation.isPending || updateClienteMutation.isPending ? 'Salvando...' : 
+                 editingCliente ? 'Atualizar' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
               >
                 Cancelar
               </Button>
@@ -197,9 +250,11 @@ const Receitas = () => {
                     {new Date(cliente.data_pagamento).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-3 px-4">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <EditDeleteActions
+                      onEdit={() => handleEdit(cliente)}
+                      onDelete={() => handleDelete(cliente.id)}
+                      isLoading={deleteClienteMutation.isPending}
+                    />
                   </td>
                 </tr>
               ))}

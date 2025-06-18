@@ -1,19 +1,23 @@
 
 import { useState } from 'react';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import { useCustosFixos, useAddCustoFixo } from '@/hooks/useSupabaseFinancialData';
+import EditDeleteActions from '@/components/ui/EditDeleteActions';
+import { useCustosFixos, useAddCustoFixo, useUpdateCustoFixo, useDeleteCustoFixo, CustoFixo } from '@/hooks/useSupabaseFinancialData';
 import { useToast } from '@/hooks/use-toast';
 
 const CustosFixos = () => {
   const { data: custosFixos = [], isLoading } = useCustosFixos();
   const addCustoFixoMutation = useAddCustoFixo();
+  const updateCustoFixoMutation = useUpdateCustoFixo();
+  const deleteCustoFixoMutation = useDeleteCustoFixo();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingCusto, setEditingCusto] = useState<CustoFixo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
@@ -21,25 +25,71 @@ const CustosFixos = () => {
     data: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.nome && formData.valor && formData.data) {
+  const resetForm = () => {
+    setFormData({ nome: '', valor: '', data: '' });
+    setEditingCusto(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (custo: CustoFixo) => {
+    setEditingCusto(custo);
+    setFormData({
+      nome: custo.nome,
+      valor: custo.valor.toString(),
+      data: custo.data,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este custo fixo?')) {
       try {
-        await addCustoFixoMutation.mutateAsync({
-          nome: formData.nome,
-          valor: parseFloat(formData.valor),
-          data: formData.data,
-        });
-        setFormData({ nome: '', valor: '', data: '' });
-        setShowForm(false);
+        await deleteCustoFixoMutation.mutateAsync(id);
         toast({
           title: "Sucesso!",
-          description: "Custo fixo adicionado com sucesso.",
+          description: "Custo fixo excluído com sucesso.",
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao adicionar custo fixo.",
+          description: "Erro ao excluir custo fixo.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.nome && formData.valor && formData.data) {
+      try {
+        const custoData = {
+          nome: formData.nome,
+          valor: parseFloat(formData.valor),
+          data: formData.data,
+        };
+
+        if (editingCusto) {
+          await updateCustoFixoMutation.mutateAsync({
+            id: editingCusto.id,
+            ...custoData,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Custo fixo atualizado com sucesso.",
+          });
+        } else {
+          await addCustoFixoMutation.mutateAsync(custoData);
+          toast({
+            title: "Sucesso!",
+            description: "Custo fixo adicionado com sucesso.",
+          });
+        }
+        resetForm();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: `Erro ao ${editingCusto ? 'atualizar' : 'adicionar'} custo fixo.`,
           variant: "destructive",
         });
       }
@@ -102,10 +152,12 @@ const CustosFixos = () => {
         </Card>
       </div>
 
-      {/* Formulário de Novo Custo */}
+      {/* Formulário de Novo/Editar Custo */}
       {showForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Novo Custo Fixo</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingCusto ? 'Editar Custo Fixo' : 'Novo Custo Fixo'}
+          </h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="nome">Nome do Custo</Label>
@@ -143,14 +195,15 @@ const CustosFixos = () => {
               <Button 
                 type="submit" 
                 className="bg-red-600 hover:bg-red-700"
-                disabled={addCustoFixoMutation.isPending}
+                disabled={addCustoFixoMutation.isPending || updateCustoFixoMutation.isPending}
               >
-                {addCustoFixoMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {addCustoFixoMutation.isPending || updateCustoFixoMutation.isPending ? 'Salvando...' : 
+                 editingCusto ? 'Atualizar' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
               >
                 Cancelar
               </Button>
@@ -197,9 +250,11 @@ const CustosFixos = () => {
                     {new Date(custo.data).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-3 px-4">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <EditDeleteActions
+                      onEdit={() => handleEdit(custo)}
+                      onDelete={() => handleDelete(custo.id)}
+                      isLoading={deleteCustoFixoMutation.isPending}
+                    />
                   </td>
                 </tr>
               ))}

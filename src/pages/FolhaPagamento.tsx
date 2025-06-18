@@ -1,19 +1,23 @@
 
 import { useState } from 'react';
-import { Plus, Search, Eye, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Search, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import DateFilter from '@/components/ui/DateFilter';
-import { useFuncionarios, useAddFuncionario } from '@/hooks/useSupabaseFinancialData';
+import EditDeleteActions from '@/components/ui/EditDeleteActions';
+import { useFuncionarios, useAddFuncionario, useUpdateFuncionario, useDeleteFuncionario, Funcionario } from '@/hooks/useSupabaseFinancialData';
 import { useToast } from '@/hooks/use-toast';
 
 const FolhaPagamento = () => {
   const { data: funcionarios = [], isLoading } = useFuncionarios();
   const addFuncionarioMutation = useAddFuncionario();
+  const updateFuncionarioMutation = useUpdateFuncionario();
+  const deleteFuncionarioMutation = useDeleteFuncionario();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingFuncionario, setEditingFuncionario] = useState<Funcionario | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nome: '',
@@ -21,25 +25,71 @@ const FolhaPagamento = () => {
     data_vencimento: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.nome && formData.salario && formData.data_vencimento) {
+  const resetForm = () => {
+    setFormData({ nome: '', salario: '', data_vencimento: '' });
+    setEditingFuncionario(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (funcionario: Funcionario) => {
+    setEditingFuncionario(funcionario);
+    setFormData({
+      nome: funcionario.nome,
+      salario: funcionario.salario.toString(),
+      data_vencimento: funcionario.data_vencimento,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este funcionário?')) {
       try {
-        await addFuncionarioMutation.mutateAsync({
-          nome: formData.nome,
-          salario: parseFloat(formData.salario),
-          data_vencimento: formData.data_vencimento,
-        });
-        setFormData({ nome: '', salario: '', data_vencimento: '' });
-        setShowForm(false);
+        await deleteFuncionarioMutation.mutateAsync(id);
         toast({
           title: "Sucesso!",
-          description: "Funcionário adicionado com sucesso.",
+          description: "Funcionário excluído com sucesso.",
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: "Erro ao adicionar funcionário.",
+          description: "Erro ao excluir funcionário.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.nome && formData.salario && formData.data_vencimento) {
+      try {
+        const funcionarioData = {
+          nome: formData.nome,
+          salario: parseFloat(formData.salario),
+          data_vencimento: formData.data_vencimento,
+        };
+
+        if (editingFuncionario) {
+          await updateFuncionarioMutation.mutateAsync({
+            id: editingFuncionario.id,
+            ...funcionarioData,
+          });
+          toast({
+            title: "Sucesso!",
+            description: "Funcionário atualizado com sucesso.",
+          });
+        } else {
+          await addFuncionarioMutation.mutateAsync(funcionarioData);
+          toast({
+            title: "Sucesso!",
+            description: "Funcionário adicionado com sucesso.",
+          });
+        }
+        resetForm();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: `Erro ao ${editingFuncionario ? 'atualizar' : 'adicionar'} funcionário.`,
           variant: "destructive",
         });
       }
@@ -126,10 +176,12 @@ const FolhaPagamento = () => {
         </Card>
       )}
 
-      {/* Formulário de Novo Funcionário */}
+      {/* Formulário de Novo/Editar Funcionário */}
       {showForm && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Novo Funcionário</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingFuncionario ? 'Editar Funcionário' : 'Novo Funcionário'}
+          </h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="nome">Nome do Funcionário</Label>
@@ -167,14 +219,15 @@ const FolhaPagamento = () => {
               <Button 
                 type="submit" 
                 className="bg-indigo-600 hover:bg-indigo-700"
-                disabled={addFuncionarioMutation.isPending}
+                disabled={addFuncionarioMutation.isPending || updateFuncionarioMutation.isPending}
               >
-                {addFuncionarioMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {addFuncionarioMutation.isPending || updateFuncionarioMutation.isPending ? 'Salvando...' : 
+                 editingFuncionario ? 'Atualizar' : 'Salvar'}
               </Button>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
               >
                 Cancelar
               </Button>
@@ -268,9 +321,11 @@ const FolhaPagamento = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <EditDeleteActions
+                        onEdit={() => handleEdit(funcionario)}
+                        onDelete={() => handleDelete(funcionario.id)}
+                        isLoading={deleteFuncionarioMutation.isPending}
+                      />
                     </td>
                   </tr>
                 );
