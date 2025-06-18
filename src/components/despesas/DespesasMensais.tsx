@@ -23,7 +23,7 @@ const DespesasMensais = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaMensal | null>(null);
-  const [filtroMes, setFiltroMes] = useState('');
+  const [filtroMes, setFiltroMes] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -41,7 +41,7 @@ const DespesasMensais = () => {
 
   const despesasFiltradas = useMemo(() => {
     return despesas.filter(despesa => {
-      const matchMes = !filtroMes || despesa.mes_referencia === filtroMes;
+      const matchMes = filtroMes === 'todos' || despesa.mes_referencia === filtroMes;
       const matchStatus = filtroStatus === 'todos' || 
         (filtroStatus === 'pago' && despesa.data_pagamento) ||
         (filtroStatus === 'pendente' && !despesa.data_pagamento);
@@ -226,7 +226,7 @@ const DespesasMensais = () => {
               <SelectValue placeholder="Todos os meses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os meses</SelectItem>
+              <SelectItem value="todos">Todos os meses</SelectItem>
               {mesesDisponiveis.map(mes => (
                 <SelectItem key={mes} value={mes}>{mes}</SelectItem>
               ))}
@@ -284,7 +284,7 @@ const DespesasMensais = () => {
       </div>
 
       {/* Gráfico */}
-      {filtroMes && <DespesaChart despesas={despesasFiltradas} />}
+      {filtroMes !== 'todos' && <DespesaChart despesas={despesasFiltradas} />}
 
       {/* Formulário */}
       {showForm && (
